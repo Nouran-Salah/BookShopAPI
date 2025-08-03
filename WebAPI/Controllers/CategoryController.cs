@@ -28,6 +28,10 @@ namespace WebAPI.Controllers
         public async Task<ActionResult> GetAllCategories(int page=1 , int pageSize = 5)
         {
             var allCats = await _unitOfWork.Categories.GetAllAsync();
+            if (allCats == null || !allCats.Any())
+            {
+                return NotFound("No categories found");
+            }
             var ordered = allCats.OrderBy(c => c.catOrder).ThenByDescending(c => c.catName).ToList();
             var CategoryReadDto = _mapper.Map<List<CategoryReadDto>>(ordered);
             var paged = CategoryReadDto
@@ -48,6 +52,9 @@ namespace WebAPI.Controllers
                 return BadRequest("Id cannot be zero");
             }
             var cat = await _unitOfWork.Categories.GetByIdAsync(Id);
+            if (cat == null) {
+                return NotFound("Category not found");
+            }
             var CatDto = _mapper.Map<CategoryReadDto>(cat);
             return Ok(CatDto);
         }
@@ -55,9 +62,15 @@ namespace WebAPI.Controllers
         [HttpPost]
         public async Task<ActionResult> createCategory(CategoryCreateDto cat)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (cat == null)
+                return BadRequest("Category cannot be null");
+
             var category = _mapper.Map<Category>(cat);
             await _unitOfWork.Categories.CreateAsync(category);
-            return NoContent();
+            return CreatedAtAction(nameof(createCategory), new { id = category.Id }, category);
         }
 
 
@@ -71,10 +84,11 @@ namespace WebAPI.Controllers
             {
                 return NotFound("Category not found");
             }
+            _mapper.Map(cat, category);
 
             await _unitOfWork.Categories.UpdateAsync(category);
 
-            return NoContent();
+            return Ok();
         }
 
         [HttpDelete]
